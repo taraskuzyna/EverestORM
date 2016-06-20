@@ -1,0 +1,5 @@
+packages/
+EverestORM/bin/
+EverestORM/obj/
+TestRunner/bin/
+TestRunner/obj/
