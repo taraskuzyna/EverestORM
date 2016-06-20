@@ -8,9 +8,11 @@ namespace EverestORM.Model
     {
         public string Name { get; set; }
 
+        public string Database { get; set; }
+
         public Type Class { get; set; }
 
-        public PropertyInfo PrimaryKey { get; set; }
+        public DbColumn PrimaryKey { get; set; }
 
         public List<DbColumn> Columns { get; set; }
     }

@@ -1,7 +1,7 @@
 ﻿using EverestORM.Attributes;
+using EverestORM.Model;
 using FirebirdSql.Data.FirebirdClient;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -158,7 +158,7 @@ namespace EverestORM
                 list.Add(new FbParameter(item.Key, item.Value));
 
             string sql = String.Format("UPDATE {0} SET {2} WHERE {1} = @{1}", table.Name, primaryKey,
-                string.Join(", ", dict.Keys.Select(k=>k + " = @" + k).ToArray()));
+                string.Join(", ", dict.Keys.Select(k => k + " = @" + k).ToArray()));
 
             object o = ExecuteQueryScalar(sql, list);
             return true;
@@ -189,7 +189,7 @@ namespace EverestORM
             }
 
             List<FbParameter> list = new List<FbParameter>();
-                    list.Add(new FbParameter(primaryKey, id));
+            list.Add(new FbParameter(primaryKey, id));
 
             string sql = String.Format("DELETE FROM {0} WHERE {1} = @{1}", table.Name, primaryKey);
 
@@ -204,56 +204,86 @@ namespace EverestORM
         {
             if (collection == null || !collection.Any())
                 return;
-            
-            DbTableAttr table = (DbTableAttr)typeof(T).GetCustomAttributes(typeof(DbTableAttr), false).FirstOrDefault();
-            if (table == null)
-                throw new InvalidOperationException("The provided object is not FbTable");
 
-            Dictionary<string, string> properties = new Dictionary<string,string>();
-            foreach (var prop in typeof(T).GetProperties())
-            {
-                DbColumnAttr attr = (DbColumnAttr)prop.GetCustomAttributes(typeof(DbColumnAttr), false).FirstOrDefault();
-                if (attr == null)
-                    continue;
+            DbTable table = SchemeCache.GetTable(typeof(T), ConnectionString);
 
-                properties.Add(prop.Name, String.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name);
-            }
-
-            string template = "execute block ({0}) \r\nas \r\nbegin \r\n{1} \r\nend";
+            string template = SqlTemlates.ExecuteBlock;
+            string variable = @"a{0} TYPE OF COLUMN ""{1}"".""{2}"" = @a{0}";
             string insert = "INSERT INTO {0} ({1}) VALUES ({2});";
 
-
-
-            var a = @"execute block (X INTEGER = @id) as
-                     begin
-                      insert into person (id,  date_of_birth)
-                      values (:x, current_date);
-
-                     end";
-
-             List<FbParameter> parameters = new List<FbParameter>();
-
-            parameters.Add(new FbParameter("id", 6));
-            ExecuteQueryScalar(a, parameters);
-
-
-            StringBuilder variables = new StringBuilder();
+            List<FbParameter> parameters = new List<FbParameter>();
+            List<string> variables = new List<string>();
             StringBuilder statements = new StringBuilder();
-           
-            int count = 0;
-            foreach(T item in collection)
-            {
-                FbConnection fbc= new FbConnection(ConnectionString);
-                FirebirdSql.Data.Isql.FbBatchExecution fbe = new FirebirdSql.Data.Isql.FbBatchExecution(fbc);
-                //var s = new FirebirdSql.Data.Isql.FbStatement();
-               // s.
-//fbe.Statements.Add() ;
-                /*
-                foreach
-                statements.AppendFormat(insert, table.Name, string.Join(", ", properties.Values), string.Join(", ",);*/
-            }
-            
 
+            int count = 0;
+            int varCount = 0;
+            Dictionary<string, string> help = new Dictionary<string, string>();
+            using (FbConnection connection = new FbConnection(ConnectionString))
+            {
+                connection.Open();
+
+                using (FbTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        foreach (T item in collection)
+                        {
+                            help = new Dictionary<string, string>();
+
+                            foreach (DbColumn col in table.Columns)
+                            {
+                                variables.Add(String.Format(variable, varCount, table.Name, col.Name));
+                                parameters.Add(new FbParameter("a" + varCount, col.Property.GetValue(item)));
+                                help.Add(col.Name, "a" + varCount);
+                                varCount++;
+                            }
+
+                            statements.AppendLine(String.Format(insert, table.Name, String.Join(", ", help.Keys), ":" + String.Join(", :", help.Values)));
+                            count++;
+
+                            if (count == 255)
+                            {
+                                ExecuteBulkInsert(string.Format(template, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
+                                count = 0;
+                                varCount = 0;
+                                parameters = new List<FbParameter>();
+                                variables = new List<string>();
+                                statements.Clear();
+                            }
+                        }
+
+                        ExecuteBulkInsert(string.Format(template, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw ex;
+                    }
+                    finally
+                    {
+                        connection.Close();
+                        connection.Dispose();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Method to execute sql with input connection & transaction
+        /// </summary>
+        /// <param name="sql">sql query</param>
+        /// <param name="parameters">input parametrs</param>
+        /// <param name="connection">input connection</param>
+        /// <param name="transaction">input transaction</param>
+        private void ExecuteBulkInsert(string sql, List<FbParameter> parameters, FbConnection connection, FbTransaction transaction)
+        {
+            FbCommand command = connection.CreateCommand();
+            command.CommandType = CommandType.Text;
+            command.CommandText = sql;
+            command.Transaction = transaction;
+            command.Parameters.AddRange(parameters);
+            command.ExecuteScalar();
         }
 
         /// <summary>
@@ -262,7 +292,7 @@ namespace EverestORM
         /// <param name="sql">SQL query</param>
         /// <param name="param">SQL query params</param>
         /// <returns>SQL query Result as DateTable</returns>
-        private DataTable QueryToDataTable(string sql, List<FbParameter> param)
+        internal DataTable QueryToDataTable(string sql, List<FbParameter> param)
         {
             DataTable dataTable = new DataTable();
             using (FbConnection connection = new FbConnection(ConnectionString))
@@ -325,7 +355,7 @@ namespace EverestORM
                         command.Transaction = transaction;
                         if (param != null && param.Count > 0)
                             command.Parameters.AddRange(param);
-                        
+
                         obj = command.ExecuteScalar();
 
                         transaction.Commit();
