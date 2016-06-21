@@ -159,10 +159,28 @@ LEFT OUTER JOIN RDB$COLLATIONS DCO ON ((DCO.RDB$COLLATION_ID = F.RDB$COLLATION_I
 WHERE (RF.RDB$RELATION_NAME = @TABLE) AND (COALESCE(RF.RDB$SYSTEM_FLAG, 0) = 0)
 ORDER BY RF.RDB$FIELD_POSITION;</value>
   </data>
+  <data name="Delete" xml:space="preserve">
+    <value>DELETE FROM {0} WHERE {1} = @{1}</value>
+  </data>
   <data name="ExecuteBlock" xml:space="preserve">
     <value>execute block ({0})
 as 
 begin 
 {1} end</value>
+  </data>
+  <data name="Insert" xml:space="preserve">
+    <value>INSERT INTO {0} ({1}) VALUES ({2});</value>
+  </data>
+  <data name="InsertRet" xml:space="preserve">
+    <value>INSERT INTO {0} ({1}) VALUES ({2}) RETURNING {3}</value>
+  </data>
+  <data name="Select" xml:space="preserve">
+    <value>SELECT {0} FROM {1} WHERE {2}</value>
+  </data>
+  <data name="Update" xml:space="preserve">
+    <value>UPDATE {0} SET {2} WHERE {1} = @{1}</value>
+  </data>
+  <data name="Variable" xml:space="preserve">
+    <value>a{0} TYPE OF COLUMN ""{1}"".""{2}"" = @a{0}</value>
   </data>
 </root>

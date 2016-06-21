@@ -18,10 +18,10 @@ namespace EverestORM
             return cachedTables.Where(t => t.Class.FullName == table.FullName).First();
         }
 
-        public static DbProcedure GetProcedure(Type procedure)
+        public static DbProcedure GetProcedure(Type procedure, string connectionString)
         {
             if (cachedProcedures.Any(t => t.Class.FullName == procedure.FullName))
-                CacheProcedure(procedure);
+                CacheProcedure(procedure, connectionString);
             return cachedProcedures.Where(t => t.Class.FullName == procedure.FullName).First();
         }
 
@@ -58,9 +58,34 @@ namespace EverestORM
             cachedTables.Add(table);
         }
 
-        private static DbProcedure CacheProcedure(Type procedure)
+        private static void CacheProcedure(Type type, string connectionString)
         {
-            throw new NotImplementedException();
+            DbProcedureAttr procAttr = (DbProcedureAttr)type.GetCustomAttributes(typeof(DbProcedureAttr), false).FirstOrDefault();
+            if (procAttr == null)
+                throw new ArgumentException("Input type has not DbProcedureAttr attribute");
+
+            DbProcedure proc = new DbProcedure()
+            {
+                Class = type,
+                Name = procAttr.Name.ToUpper(),
+                Database = connectionString,
+                Perameters = new List<DbParameter>()
+            };
+
+            Dictionary<string, string> properties = new Dictionary<string, string>();
+            foreach (var prop in type.GetProperties())
+            {
+                DbParameterAttr attr = (DbParameterAttr)prop.GetCustomAttributes(typeof(DbParameterAttr), false).FirstOrDefault();
+                if (attr == null)
+                    continue;
+
+                DbParameter param = new DbParameter();
+                param.OrdinalNumber = attr.OrdinalNumber;
+                param.Name = String.IsNullOrEmpty(attr.Name) ? prop.Name.ToUpper() : attr.Name.ToUpper();
+                param.Property = prop;
+                proc.Perameters.Add(param);
+            }
+            cachedProcedures.Add(proc);
         }
     }
 }

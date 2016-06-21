@@ -1,11 +1,9 @@
-﻿using EverestORM.Attributes;
-using EverestORM.Model;
+﻿using EverestORM.Model;
 using FirebirdSql.Data.FirebirdClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace EverestORM
@@ -38,16 +36,14 @@ namespace EverestORM
         /// <returns></returns>
         public IEnumerable<TOutput> Select<TOutput>(string where = null, Dictionary<string, object> param = null) where TOutput : class, new()
         {
-            DbTableAttr table = (DbTableAttr)Attribute.GetCustomAttributes(typeof(TOutput), false).FirstOrDefault();
-            if (table == null)
-                throw new InvalidOperationException("The provided object is not FbTable");
+            DbTable table = SchemeCache.GetTable(typeof(TOutput), ConnectionString);
 
             List<FbParameter> list = new List<FbParameter>();
             if (param != null && param.Count > 0)
                 foreach (var item in param)
                     list.Add(new FbParameter(item.Key, item.Value));
 
-            string sql = String.Format("SELECT * FROM {0} WHERE {1}", table.Name, string.IsNullOrEmpty(where) ? "1=1" : where);
+            string sql = String.Format(SqlTemlates.Select, String.Join(", ", table.Columns.Select(c => c.Name)), table.Name, String.IsNullOrEmpty(where) ? "1=1" : where);
             DataTable dataTable = QueryToDataTable(sql, list);
 
             return DataTableToList<TOutput>(dataTable);
@@ -61,26 +57,13 @@ namespace EverestORM
         /// <returns></returns>
         public IEnumerable<TOutput> SelectProcedure<TOutput>(object procedure) where TOutput : class, new()
         {
-            DbProcedureAttr proc = (DbProcedureAttr)procedure.GetType().GetCustomAttributes(typeof(DbProcedureAttr), false).FirstOrDefault();
-            if (proc == null)
-                throw new InvalidOperationException("The provided object is not FbProcedure");
-
-            Dictionary<string, object> dict = new Dictionary<string, object>();
-            foreach (var prop in procedure.GetType().GetProperties())
-            {
-                DbParameterAttr attr = (DbParameterAttr)prop.GetCustomAttributes(typeof(DbParameterAttr), false).FirstOrDefault();
-                if (attr == null)
-                    continue;
-
-                PropertyInfo propertyInfo = procedure.GetType().GetProperty(prop.Name);
-                dict.Add(attr.OrdinalNumber.ToString(), prop.GetValue(procedure));
-            }
+            DbProcedure proc = SchemeCache.GetProcedure(procedure.GetType(), ConnectionString);
 
             List<FbParameter> list = new List<FbParameter>();
-            foreach (var item in dict.OrderBy(x => x.Key))
-                list.Add(new FbParameter("p" + item.Key, item.Value));
+            foreach (var item in proc.Perameters.OrderBy(x => x.OrdinalNumber))
+                list.Add(new FbParameter("p" + item.OrdinalNumber, item.Property.GetValue(item)));
 
-            string sql = String.Format("SELECT * FROM {0}({1})", proc.Name, String.Join(",", list.Select(p => "@" + p.ParameterName).ToArray()));
+            string sql = String.Format("SELECT * FROM {0}({1})", proc.Name, String.Join(",", list.Select(p => "@" + p.ParameterName)));
             DataTable dataTable = QueryToDataTable(sql, list);
 
             return DataTableToList<TOutput>(dataTable);
@@ -93,33 +76,14 @@ namespace EverestORM
         /// <returns>object id</returns>
         public int Insert(object obj)
         {
-            DbTableAttr table = (DbTableAttr)obj.GetType().GetCustomAttributes(typeof(DbTableAttr), false).FirstOrDefault();
-            if (table == null)
-                throw new InvalidOperationException("The provided object is not FbTable");
-
-            string primaryKey = null;
-            Dictionary<string, object> dict = new Dictionary<string, object>();
-            foreach (var prop in obj.GetType().GetProperties())
-            {
-                DbColumnAttr attr = (DbColumnAttr)prop.GetCustomAttributes(typeof(DbColumnAttr), false).FirstOrDefault();
-                if (attr == null)
-                    continue;
-
-                DbPrimaryKeyAttr pk = (DbPrimaryKeyAttr)prop.GetCustomAttributes(typeof(DbPrimaryKeyAttr), false).FirstOrDefault();
-                if (pk != null)
-                    primaryKey = string.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name;
-
-
-                PropertyInfo propertyInfo = obj.GetType().GetProperty(prop.Name);
-                dict.Add(string.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name, prop.GetValue(obj));
-            }
+            DbTable table = SchemeCache.GetTable(obj.GetType(), ConnectionString);
 
             List<FbParameter> list = new List<FbParameter>();
-            foreach (var item in dict)
-                list.Add(new FbParameter(item.Key, item.Value));
+            foreach (var item in table.Columns)
+                list.Add(new FbParameter(item.Name, item.Property.GetValue(obj)));
 
-            string sql = String.Format("INSERT INTO {0} ({1}) VALUES ({2}) RETURNING {3}", table.Name,
-                string.Join(", ", dict.Keys.ToArray()), "@" + string.Join(", @", dict.Keys.ToArray()), primaryKey);
+            string sql = String.Format(SqlTemlates.InsertRet, table.Name,
+                string.Join(", ", table.Columns.Select(c => c.Name)), "@" + string.Join(", @", table.Columns.Select(c => c.Name)), table.PrimaryKey.Name);
 
             object o = ExecuteQueryScalar(sql, list);
             return Convert.ToInt32(o);
@@ -132,33 +96,14 @@ namespace EverestORM
         /// <returns></returns>
         public bool Update(object obj)
         {
-            DbTableAttr table = (DbTableAttr)obj.GetType().GetCustomAttributes(typeof(DbTableAttr), false).FirstOrDefault();
-            if (table == null)
-                throw new InvalidOperationException("The provided object is not FbTable");
-
-            string primaryKey = null;
-            Dictionary<string, object> dict = new Dictionary<string, object>();
-            foreach (var prop in obj.GetType().GetProperties())
-            {
-                DbColumnAttr attr = (DbColumnAttr)prop.GetCustomAttributes(typeof(DbColumnAttr), false).FirstOrDefault();
-                if (attr == null)
-                    continue;
-
-                DbPrimaryKeyAttr pk = (DbPrimaryKeyAttr)prop.GetCustomAttributes(typeof(DbPrimaryKeyAttr), false).FirstOrDefault();
-                if (pk != null)
-                    primaryKey = string.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name;
-
-
-                PropertyInfo propertyInfo = obj.GetType().GetProperty(prop.Name);
-                dict.Add(string.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name, prop.GetValue(obj));
-            }
+            DbTable table = SchemeCache.GetTable(obj.GetType(), ConnectionString);
 
             List<FbParameter> list = new List<FbParameter>();
-            foreach (var item in dict)
-                list.Add(new FbParameter(item.Key, item.Value));
+            foreach (var item in table.Columns)
+                list.Add(new FbParameter(item.Name, item.Property.GetValue(obj)));
 
-            string sql = String.Format("UPDATE {0} SET {2} WHERE {1} = @{1}", table.Name, primaryKey,
-                string.Join(", ", dict.Keys.Select(k => k + " = @" + k).ToArray()));
+            string sql = String.Format(SqlTemlates.Update, table.Name, table.PrimaryKey.Name,
+                string.Join(", ", table.Columns.Select(c => c.Name + " = @" + c.Name).ToArray()));
 
             object o = ExecuteQueryScalar(sql, list);
             return true;
@@ -171,27 +116,12 @@ namespace EverestORM
         /// <param name="id"></param>
         public void Delete<T>(object id) where T : class, new()
         {
-            DbTableAttr table = (DbTableAttr)Attribute.GetCustomAttributes(typeof(T), false).FirstOrDefault();
-            if (table == null)
-                throw new InvalidOperationException("The provided object is not FbTable");
-
-            string primaryKey = null;
-            Dictionary<string, object> dict = new Dictionary<string, object>();
-            foreach (var prop in typeof(T).GetProperties())
-            {
-                DbColumnAttr attr = (DbColumnAttr)prop.GetCustomAttributes(typeof(DbColumnAttr), false).FirstOrDefault();
-                if (attr == null)
-                    continue;
-
-                DbPrimaryKeyAttr pk = (DbPrimaryKeyAttr)prop.GetCustomAttributes(typeof(DbPrimaryKeyAttr), false).FirstOrDefault();
-                if (pk != null)
-                    primaryKey = string.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name;
-            }
+            DbTable table = SchemeCache.GetTable(typeof(T), ConnectionString);
 
             List<FbParameter> list = new List<FbParameter>();
-            list.Add(new FbParameter(primaryKey, id));
+            list.Add(new FbParameter(table.PrimaryKey.Name, id));
 
-            string sql = String.Format("DELETE FROM {0} WHERE {1} = @{1}", table.Name, primaryKey);
+            string sql = String.Format(SqlTemlates.Delete, table.Name, table.PrimaryKey.Name);
 
             ExecuteQueryScalar(sql, list);
         }
@@ -206,10 +136,6 @@ namespace EverestORM
                 return;
 
             DbTable table = SchemeCache.GetTable(typeof(T), ConnectionString);
-
-            string template = SqlTemlates.ExecuteBlock;
-            string variable = @"a{0} TYPE OF COLUMN ""{1}"".""{2}"" = @a{0}";
-            string insert = "INSERT INTO {0} ({1}) VALUES ({2});";
 
             List<FbParameter> parameters = new List<FbParameter>();
             List<string> variables = new List<string>();
@@ -232,18 +158,18 @@ namespace EverestORM
 
                             foreach (DbColumn col in table.Columns)
                             {
-                                variables.Add(String.Format(variable, varCount, table.Name, col.Name));
+                                variables.Add(String.Format(SqlTemlates.Variable, varCount, table.Name, col.Name));
                                 parameters.Add(new FbParameter("a" + varCount, col.Property.GetValue(item)));
                                 help.Add(col.Name, "a" + varCount);
                                 varCount++;
                             }
 
-                            statements.AppendLine(String.Format(insert, table.Name, String.Join(", ", help.Keys), ":" + String.Join(", :", help.Values)));
+                            statements.AppendLine(String.Format(SqlTemlates.Insert, table.Name, String.Join(", ", help.Keys), ":" + String.Join(", :", help.Values)));
                             count++;
 
                             if (count == 255)
                             {
-                                ExecuteBulkInsert(string.Format(template, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
+                                ExecuteBulkInsert(String.Format(SqlTemlates.ExecuteBlock, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
                                 count = 0;
                                 varCount = 0;
                                 parameters = new List<FbParameter>();
@@ -251,8 +177,8 @@ namespace EverestORM
                                 statements.Clear();
                             }
                         }
-
-                        ExecuteBulkInsert(string.Format(template, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
+                        if (variables.Any())
+                            ExecuteBulkInsert(String.Format(SqlTemlates.ExecuteBlock, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
                         transaction.Commit();
                     }
                     catch (Exception ex)
@@ -385,27 +311,22 @@ namespace EverestORM
         {
             try
             {
+                DbTable tab = SchemeCache.GetTable(typeof(TOutput), ConnectionString);
                 List<TOutput> collection = new List<TOutput>();
 
                 foreach (var row in table.AsEnumerable())
                 {
                     TOutput obj = new TOutput();
 
-                    foreach (var prop in obj.GetType().GetProperties())
+                    foreach (var item in tab.Columns)
                     {
-                        DbColumnAttr attr = (DbColumnAttr)prop.GetCustomAttributes(typeof(DbColumnAttr), false).FirstOrDefault();
-                        if (attr == null)
-                            continue;
-                        string column = "";
                         try
                         {
-                            column = string.IsNullOrEmpty(attr.Name) ? prop.Name : attr.Name;
-                            PropertyInfo propertyInfo = obj.GetType().GetProperty(prop.Name);
-                            propertyInfo.SetValue(obj, Convert.ChangeType(row[column], propertyInfo.PropertyType), null);
+                            item.Property.SetValue(obj, Convert.ChangeType(row[item.Name], item.Property.PropertyType), null);
                         }
                         catch (Exception ex)
                         {
-                            throw new Exception("Invalid column name: " + column, ex);
+                            throw new Exception("Invalid column name: " + item.Name, ex);
                         }
                     }
 

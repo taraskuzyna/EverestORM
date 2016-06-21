@@ -85,6 +85,15 @@ namespace EverestORM {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DELETE FROM {0} WHERE {1} = @{1}.
+        /// </summary>
+        internal static string Delete {
+            get {
+                return ResourceManager.GetString("Delete", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to execute block ({0})
         ///as 
         ///begin 
@@ -93,6 +102,51 @@ namespace EverestORM {
         internal static string ExecuteBlock {
             get {
                 return ResourceManager.GetString("ExecuteBlock", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to INSERT INTO {0} ({1}) VALUES ({2});.
+        /// </summary>
+        internal static string Insert {
+            get {
+                return ResourceManager.GetString("Insert", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to INSERT INTO {0} ({1}) VALUES ({2}) RETURNING {3}.
+        /// </summary>
+        internal static string InsertRet {
+            get {
+                return ResourceManager.GetString("InsertRet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SELECT {0} FROM {1} WHERE {2}.
+        /// </summary>
+        internal static string Select {
+            get {
+                return ResourceManager.GetString("Select", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to UPDATE {0} SET {2} WHERE {1} = @{1}.
+        /// </summary>
+        internal static string Update {
+            get {
+                return ResourceManager.GetString("Update", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to a{0} TYPE OF COLUMN &quot;&quot;{1}&quot;&quot;.&quot;&quot;{2}&quot;&quot; = @a{0}.
+        /// </summary>
+        internal static string Variable {
+            get {
+                return ResourceManager.GetString("Variable", resourceCulture);
             }
         }
     }

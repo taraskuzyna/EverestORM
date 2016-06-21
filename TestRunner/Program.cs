@@ -47,7 +47,7 @@ namespace TestRunner
     [DbProcedureAttr("X_GET_PERSONS")]
     public class GetPersons
     {
-        [DbParameterAttr(0)]
+        [DbParameterAttr()]
         public string P { get; set; }
 
         [DbParameterAttr(1)]
