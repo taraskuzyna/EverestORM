@@ -8,6 +8,8 @@ namespace EverestORM.Model
 
         public string DbType { get; set; }
 
+        public int Size { get; set; }
+
         public PropertyInfo Property { get; set; }
     }
 }

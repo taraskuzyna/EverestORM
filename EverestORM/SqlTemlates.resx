@@ -120,6 +120,7 @@
   <data name="ColumnsQuery" xml:space="preserve">
     <value>SELECT
   RF.RDB$FIELD_NAME FIELD_NAME,
+  f.rdb$field_length,
   CASE F.RDB$FIELD_TYPE
     WHEN 7 THEN
       CASE F.RDB$FIELD_SUB_TYPE
@@ -181,6 +182,6 @@ begin
     <value>UPDATE {0} SET {2} WHERE {1} = @{1}</value>
   </data>
   <data name="Variable" xml:space="preserve">
-    <value>a{0} TYPE OF COLUMN ""{1}"".""{2}"" = @a{0}</value>
+    <value>a{0} TYPE OF COLUMN "{1}"."{2}" = @a{0}</value>
   </data>
 </root>

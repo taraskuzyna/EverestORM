@@ -1,7 +1,9 @@
 ﻿using EverestORM.Attributes;
 using EverestORM.Model;
+using FirebirdSql.Data.FirebirdClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 
 namespace EverestORM
@@ -13,14 +15,14 @@ namespace EverestORM
 
         public static DbTable GetTable(Type table, string connectionString)
         {
-            if (cachedTables.Any(t => t.Class.FullName.Equals(table.FullName) && t.Database.Equals(connectionString)))
+            if (!cachedTables.Any(t => t.Class.FullName.Equals(table.FullName) && t.Database.Equals(connectionString)))
                 CacheTable(table, connectionString);
-            return cachedTables.Where(t => t.Class.FullName == table.FullName).First();
+            return cachedTables.Where(t => t.Class.FullName == table.FullName && t.Database.Equals(connectionString)).First();
         }
 
         public static DbProcedure GetProcedure(Type procedure, string connectionString)
         {
-            if (cachedProcedures.Any(t => t.Class.FullName == procedure.FullName))
+            if (!cachedProcedures.Any(t => t.Class.FullName == procedure.FullName))
                 CacheProcedure(procedure, connectionString);
             return cachedProcedures.Where(t => t.Class.FullName == procedure.FullName).First();
         }
@@ -39,6 +41,8 @@ namespace EverestORM
                 Columns = new List<DbColumn>()
             };
 
+            DataTable dt = GetTableColumnsInfo(table.Name, connectionString);
+            
             Dictionary<string, string> properties = new Dictionary<string, string>();
             foreach (var prop in type.GetProperties())
             {
@@ -49,6 +53,11 @@ namespace EverestORM
                 DbColumn column = new DbColumn();
                 column.Name = String.IsNullOrEmpty(attr.Name) ? prop.Name.ToUpper() : attr.Name.ToUpper();
                 column.Property = prop;
+                DataRow dr = dt.AsEnumerable().FirstOrDefault(r => r.Field<string>("FIELD_NAME").ToString().Trim().Equals(column.Name));
+                if (dr == null)
+                    throw new Exception("Column " + column.Name + " not exists in " + table.Name);
+                column.DbType = dr["FIELD_TYPE"].ToString();
+                column.Size = Convert.ToInt32(dr["RDB$FIELD_LENGTH"]);
                 table.Columns.Add(column);
 
                 DbPrimaryKeyAttr pk = (DbPrimaryKeyAttr)prop.GetCustomAttributes(typeof(DbPrimaryKeyAttr), false).FirstOrDefault();
@@ -86,6 +95,45 @@ namespace EverestORM
                 proc.Perameters.Add(param);
             }
             cachedProcedures.Add(proc);
+        }
+
+        private static DataTable GetTableColumnsInfo(string table,string connectionString)
+        {
+            DataTable dataTable = new DataTable();
+            using (FbConnection connection = new FbConnection(connectionString))
+            {
+                connection.Open();
+
+                using (FbTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        FbCommand command = connection.CreateCommand();
+                        command.CommandType = CommandType.Text;
+                        command.CommandText = SqlTemlates.ColumnsQuery;
+                        command.Transaction = transaction;
+                        command.Parameters.Add("TABLE", table);
+
+                        using (FbDataAdapter dataAdapter = new FbDataAdapter(command))
+                        {
+                            dataAdapter.Fill(dataTable);
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw new Exception("Error during executing query: " + SqlTemlates.ColumnsQuery, ex);
+                    }
+                    finally
+                    {
+                        connection.Close();
+                        connection.Dispose();
+                    }
+                }
+            }
+            return dataTable;
         }
     }
 }

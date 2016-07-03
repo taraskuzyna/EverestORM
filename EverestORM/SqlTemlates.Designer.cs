@@ -63,6 +63,7 @@ namespace EverestORM {
         /// <summary>
         ///   Looks up a localized string similar to SELECT
         ///  RF.RDB$FIELD_NAME FIELD_NAME,
+        ///  f.rdb$field_length,
         ///  CASE F.RDB$FIELD_TYPE
         ///    WHEN 7 THEN
         ///      CASE F.RDB$FIELD_SUB_TYPE
@@ -74,9 +75,7 @@ namespace EverestORM {
         ///      CASE F.RDB$FIELD_SUB_TYPE
         ///        WHEN 0 THEN &apos;INTEGER&apos;
         ///        WHEN 1 THEN &apos;NUMERIC(&apos;  || F.RDB$FIELD_PRECISION || &apos;, &apos; || (-F.RDB$FIELD_SCALE) || &apos;)&apos;
-        ///        WHEN 2 THEN &apos;DECIMAL&apos;
-        ///      END
-        ///    WH [rest of string was truncated]&quot;;.
+        ///        WHEN 2 THEN &apos;DECI [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ColumnsQuery {
             get {
@@ -142,7 +141,7 @@ namespace EverestORM {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to a{0} TYPE OF COLUMN &quot;&quot;{1}&quot;&quot;.&quot;&quot;{2}&quot;&quot; = @a{0}.
+        ///   Looks up a localized string similar to a{0} TYPE OF COLUMN &quot;{1}&quot;.&quot;{2}&quot; = @a{0}.
         /// </summary>
         internal static string Variable {
             get {

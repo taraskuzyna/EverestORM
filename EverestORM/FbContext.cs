@@ -61,7 +61,7 @@ namespace EverestORM
 
             List<FbParameter> list = new List<FbParameter>();
             foreach (var item in proc.Perameters.OrderBy(x => x.OrdinalNumber))
-                list.Add(new FbParameter("p" + item.OrdinalNumber, item.Property.GetValue(item)));
+                list.Add(new FbParameter("p" + item.OrdinalNumber, item.Property.GetValue(procedure)));
 
             string sql = String.Format("SELECT * FROM {0}({1})", proc.Name, String.Join(",", list.Select(p => "@" + p.ParameterName)));
             DataTable dataTable = QueryToDataTable(sql, list);
@@ -137,13 +137,10 @@ namespace EverestORM
 
             DbTable table = SchemeCache.GetTable(typeof(T), ConnectionString);
 
-            List<FbParameter> parameters = new List<FbParameter>();
-            List<string> variables = new List<string>();
-            StringBuilder statements = new StringBuilder();
-
-            int count = 0;
             int varCount = 0;
             Dictionary<string, string> help = new Dictionary<string, string>();
+            BulkInsertExecuteBlock block = new BulkInsertExecuteBlock();
+
             using (FbConnection connection = new FbConnection(ConnectionString))
             {
                 connection.Open();
@@ -155,30 +152,28 @@ namespace EverestORM
                         foreach (T item in collection)
                         {
                             help = new Dictionary<string, string>();
-
+                            BulkInsertQuery query = new BulkInsertQuery();
                             foreach (DbColumn col in table.Columns)
                             {
-                                variables.Add(String.Format(SqlTemlates.Variable, varCount, table.Name, col.Name));
-                                parameters.Add(new FbParameter("a" + varCount, col.Property.GetValue(item)));
+                                query.Variables.Add(String.Format(SqlTemlates.Variable, varCount, table.Name, col.Name));
+                                query.Parameters.Add(new FbParameter("a" + varCount, col.Property.GetValue(item)));
+                                query.ParametersSize += col.Size;
                                 help.Add(col.Name, "a" + varCount);
                                 varCount++;
                             }
 
-                            statements.AppendLine(String.Format(SqlTemlates.Insert, table.Name, String.Join(", ", help.Keys), ":" + String.Join(", :", help.Values)));
-                            count++;
+                            query.Query = String.Format(SqlTemlates.Insert, table.Name, String.Join(", ", help.Keys), ":" + String.Join(", :", help.Values));
 
-                            if (count == 255)
+                            if (!block.CanAddQuery(query))
                             {
-                                ExecuteBulkInsert(String.Format(SqlTemlates.ExecuteBlock, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
-                                count = 0;
+                                ExecuteBulkInsert(block.ToString(), block.Parameters, connection, transaction);
                                 varCount = 0;
-                                parameters = new List<FbParameter>();
-                                variables = new List<string>();
-                                statements.Clear();
+                                block = new BulkInsertExecuteBlock();
                             }
+                            block.AddQuery(query);
                         }
-                        if (variables.Any())
-                            ExecuteBulkInsert(String.Format(SqlTemlates.ExecuteBlock, String.Join(", \r\n", variables), statements.ToString()), parameters, connection, transaction);
+                        if (block.Statements.Any())
+                            ExecuteBulkInsert(block.ToString(), block.Parameters, connection, transaction);
                         transaction.Commit();
                     }
                     catch (Exception ex)
