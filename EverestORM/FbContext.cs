@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
+using System.Threading.Tasks;
 
 namespace EverestORM
 {
@@ -50,6 +50,18 @@ namespace EverestORM
         }
 
         /// <summary>
+        /// Read data set of output type asynchronous
+        /// </summary>
+        /// <typeparam name="TOutput">Data set type</typeparam>
+        /// <param name="where"> WHERE clauses of SQL query</param>
+        /// <param name="param">Dictionary of SQL query parameters</param>
+        /// <returns></returns>
+        public async Task<IEnumerable<TOutput>> SelectAsync<TOutput>(string where = null, Dictionary<string, object> param = null) where TOutput : class, new()
+        {
+            return await Task.Run<IEnumerable<TOutput>>(() => Select<TOutput>(where, param));
+        }
+
+        /// <summary>
         /// Read data set of output type from stored procedure
         /// </summary>
         /// <typeparam name="TOutput">Putput type</typeparam>
@@ -67,6 +79,17 @@ namespace EverestORM
             DataTable dataTable = QueryToDataTable(sql, list);
 
             return DataTableToList<TOutput>(dataTable);
+        }
+
+        /// <summary>
+        /// Read data set of output type from stored procedure asynchronous
+        /// </summary>
+        /// <typeparam name="TOutput">Putput type</typeparam>
+        /// <param name="procedure">Definition of stored procedure</param>
+        /// <returns></returns>
+        public async Task<IEnumerable<TOutput>> SelectProcedureAsync<TOutput>(object procedure) where TOutput : class, new()
+        {
+            return await Task.Run<IEnumerable<TOutput>>(() => SelectProcedure<TOutput>(procedure));
         }
 
         /// <summary>
@@ -90,6 +113,16 @@ namespace EverestORM
         }
 
         /// <summary>
+        /// Insert object into database asynchronous
+        /// </summary>
+        /// <param name="obj">object FbTable</param>
+        /// <returns>object id</returns>
+        public async Task<int> InsertAsync(object obj)
+        {
+            return await Task.Run<int>(() => Insert(obj));
+        }
+
+        /// <summary>
         /// Updates object on database
         /// </summary>
         /// <param name="obj"></param>
@@ -110,6 +143,16 @@ namespace EverestORM
         }
 
         /// <summary>
+        /// Updates object on database asynchronous
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public async Task<bool> UpdateAsync(object obj)
+        {
+            return await Task.Run<bool>(() => Update(obj));
+        }
+
+        /// <summary>
         /// Deletes object on database by ID
         /// </summary>
         /// <typeparam name="T">object type</typeparam>
@@ -124,6 +167,16 @@ namespace EverestORM
             string sql = String.Format(SqlTemlates.Delete, table.Name, table.PrimaryKey.Name);
 
             ExecuteQueryScalar(sql, list);
+        }
+
+        /// <summary>
+        /// Deletes object on database by ID asynchronous
+        /// </summary>
+        /// <typeparam name="T">object type</typeparam>
+        /// <param name="id"></param>
+        public async Task DeleteAsync<T>(object id) where T : class, new()
+        {
+            await Task.Run(() => Delete<T>(id));
         }
 
         /// <summary>
@@ -174,6 +227,7 @@ namespace EverestORM
                         }
                         if (block.Statements.Any())
                             ExecuteBulkInsert(block.ToString(), block.Parameters, connection, transaction);
+
                         transaction.Commit();
                     }
                     catch (Exception ex)
@@ -188,6 +242,15 @@ namespace EverestORM
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Insert collection of objects asynchronous
+        /// </summary>
+        /// <param name="collection">data to save</param>
+        public async Task BulkInsertAsync<T>(IEnumerable<T> collection) where T : class, new()
+        {
+            await Task.Run(() => BulkInsert<T>(collection));
         }
 
         /// <summary>

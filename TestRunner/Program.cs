@@ -26,8 +26,11 @@ namespace TestRunner
             Console.WriteLine(DateTime.Now);
             List<TestTable> list = TestTable.getData();
             Console.WriteLine(DateTime.Now);
-            context.BulkInsert(list);
+            var result = context.BulkInsertAsync(list);
             Console.WriteLine(DateTime.Now);
+            result.Wait();
+            Console.WriteLine(DateTime.Now);
+
         }
     }
 
@@ -44,7 +47,7 @@ namespace TestRunner
 
         public int MyProperty { get; set; }
     }
-   
+
     [DbProcedureAttr("X_GET_PERSONS")]
     public class GetPersons
     {
