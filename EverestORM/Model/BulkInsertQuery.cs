@@ -42,7 +42,7 @@ namespace EverestORM.Model
         }
 
         /// <summary>
-        /// 
+        /// Default constructor
         /// </summary>
         public BulkInsertQuery()
         {

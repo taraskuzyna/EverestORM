@@ -2,6 +2,7 @@
 using FirebirdSql.Data.FirebirdClient;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,12 +20,12 @@ namespace EverestORM
         public string ConnectionString { get; set; }
 
         /// <summary>
-        /// Constructor
+        /// Default constructor with specified connection name
         /// </summary>
         /// <param name="connectionName">Name of connection string</param>
         public FbContext(string connectionName)
         {
-            ConnectionString = System.Configuration.ConfigurationManager.ConnectionStrings[connectionName].ConnectionString;
+            ConnectionString = ConfigurationManager.ConnectionStrings[connectionName].ConnectionString;
         }
 
         /// <summary>
@@ -90,6 +91,31 @@ namespace EverestORM
         public async Task<IEnumerable<TOutput>> SelectProcedureAsync<TOutput>(object procedure) where TOutput : class, new()
         {
             return await Task.Run<IEnumerable<TOutput>>(() => SelectProcedure<TOutput>(procedure));
+        }
+
+        /// <summary>
+        /// Executes stored procedure 
+        /// </summary>
+        /// <param name="procedure">Definition of stored procedure</param>
+        public void ExecuteProcedure(object procedure)
+        {
+            DbProcedure proc = SchemeCache.GetProcedure(procedure.GetType(), ConnectionString);
+
+            List<FbParameter> list = new List<FbParameter>();
+            foreach (var item in proc.Perameters.OrderBy(x => x.OrdinalNumber))
+                list.Add(new FbParameter("p" + item.OrdinalNumber, item.Property.GetValue(procedure)));
+
+            string sql = String.Format("EXECUTE PROCEDURE {0}({1})", proc.Name, String.Join(",", list.Select(p => "@" + p.ParameterName)));
+            ExecuteQueryScalar(sql, list);
+        }
+
+        /// <summary>
+        /// Executes stored procedure asynchronous
+        /// </summary>
+        /// <param name="procedure">Definition of stored procedure</param>
+        public async Task ExecuteProcedureAsync(object procedure)
+        {
+            await Task.Run(() => ExecuteProcedure(procedure));
         }
 
         /// <summary>

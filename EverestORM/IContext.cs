@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 
 namespace EverestORM
 {
+    /// <summary>
+    /// EverestORM context provider
+    /// </summary>
     public interface IContext
     {
         /// <summary>
@@ -44,6 +47,18 @@ namespace EverestORM
         /// <returns></returns>
         Task<IEnumerable<TOutput>> SelectProcedureAsync<TOutput>(object procedure) where TOutput : class, new();
 
+        /// <summary>
+        ///  Executes stored procedure
+        /// </summary>
+        /// <param name="procedure">Definition of stored procedure</param>
+        void ExecuteProcedure(object procedure);
+
+        /// <summary>
+        /// Executes stored procedure asynchronous
+        /// </summary>
+        /// <param name="procedure">Definition of stored procedure</param>
+        Task ExecuteProcedureAsync(object procedure);
+        
         /// <summary>
         /// Insert object into database
         /// </summary>

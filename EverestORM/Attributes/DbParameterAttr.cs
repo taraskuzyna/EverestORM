@@ -2,31 +2,52 @@
 
 namespace EverestORM.Attributes
 {
+    /// <summary>
+    /// Attribute for procedure input parameters
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public class DbParameterAttr : Attribute
     {
-        private int no;
+        private int ordinalNumber;
         private string name;
 
+        /// <summary>
+        /// Name of parameter
+        /// </summary>
         public string Name { get { return name; } }
 
-        public int OrdinalNumber { get { return no; } }
+        /// <summary>
+        /// Ordinal number of parametr
+        /// </summary>
+        public int OrdinalNumber { get { return ordinalNumber; } }
 
+        /// <summary>
+        /// Default constructor
+        /// </summary>
         public DbParameterAttr()
         {
-            this.no = 0;
+            this.ordinalNumber = 0;
             this.name = String.Empty;
         }
 
-        public DbParameterAttr(int no)
+        /// <summary>
+        /// Constructor with specified ordinal number
+        /// </summary>
+        /// <param name="on">ordinal number</param>
+        public DbParameterAttr(int on)
         {
-            this.no = no;
+            this.ordinalNumber = on;
             this.name = String.Empty;
         }
 
-        public DbParameterAttr(int no, string name)
+        /// <summary>
+        /// Constructor with specified ordinal number and parameter name
+        /// </summary>
+        /// <param name="on">ordinal number</param>
+        /// <param name="name">parameter name</param>
+        public DbParameterAttr(int on, string name)
         {
-            this.no = no;
+            this.ordinalNumber = on;
             this.name = name;
         }
     }

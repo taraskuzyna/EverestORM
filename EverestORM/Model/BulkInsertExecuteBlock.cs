@@ -33,7 +33,7 @@ namespace EverestORM.Model
         public List<string> Statements { get; set; }
 
         /// <summary>
-        /// 
+        /// Default constructor
         /// </summary>
         public BulkInsertExecuteBlock()
         {
@@ -69,7 +69,7 @@ namespace EverestORM.Model
         }
 
         /// <summary>
-        /// 
+        /// Method build execute block
         /// </summary>
         /// <returns></returns>
         public override string ToString()

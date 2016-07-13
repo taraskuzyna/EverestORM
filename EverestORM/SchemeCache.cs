@@ -1,18 +1,27 @@
-﻿using EverestORM.Attributes;
-using EverestORM.Model;
-using FirebirdSql.Data.FirebirdClient;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using FirebirdSql.Data.FirebirdClient;
+using EverestORM.Attributes;
+using EverestORM.Model;
 
 namespace EverestORM
 {
+    /// <summary>
+    /// Cache of database strutures to C# classes mappings
+    /// </summary>
     public static class SchemeCache
     {
         private static List<DbTable> cachedTables = new List<DbTable>();
         private static List<DbProcedure> cachedProcedures = new List<DbProcedure>();
 
+        /// <summary>
+        /// Method gets cached mappings by table name and connection string
+        /// </summary>
+        /// <param name="table">Table name</param>
+        /// <param name="connectionString">Connection string</param>
+        /// <returns></returns>
         public static DbTable GetTable(Type table, string connectionString)
         {
             if (!cachedTables.Any(t => t.Class.FullName.Equals(table.FullName) && t.Database.Equals(connectionString)))
@@ -20,6 +29,12 @@ namespace EverestORM
             return cachedTables.Where(t => t.Class.FullName == table.FullName && t.Database.Equals(connectionString)).First();
         }
 
+        /// <summary>
+        /// Method gets cached mappings by procedure name and connection string
+        /// </summary>
+        /// <param name="procedure"></param>
+        /// <param name="connectionString"></param>
+        /// <returns></returns>
         public static DbProcedure GetProcedure(Type procedure, string connectionString)
         {
             if (!cachedProcedures.Any(t => t.Class.FullName == procedure.FullName))
@@ -27,6 +42,11 @@ namespace EverestORM
             return cachedProcedures.Where(t => t.Class.FullName == procedure.FullName).First();
         }
 
+        /// <summary>
+        /// Method cache table to class mapping
+        /// </summary>
+        /// <param name="type">Class of table</param>
+        /// <param name="connectionString">Connection string</param>
         private static void CacheTable(Type type, string connectionString)
         {
             DbTableAttr tableAttr = (DbTableAttr)type.GetCustomAttributes(typeof(DbTableAttr), false).FirstOrDefault();
@@ -67,6 +87,11 @@ namespace EverestORM
             cachedTables.Add(table);
         }
 
+        /// <summary>
+        /// Method cache procedure to class mapping
+        /// </summary>
+        /// <param name="type">Class of procedure</param>
+        /// <param name="connectionString">Connection string</param>
         private static void CacheProcedure(Type type, string connectionString)
         {
             DbProcedureAttr procAttr = (DbProcedureAttr)type.GetCustomAttributes(typeof(DbProcedureAttr), false).FirstOrDefault();
@@ -97,6 +122,12 @@ namespace EverestORM
             cachedProcedures.Add(proc);
         }
 
+        /// <summary>
+        /// Method gets info about database columns type and size
+        /// </summary>
+        /// <param name="table">Table name</param>
+        /// <param name="connectionString">Connection string</param>
+        /// <returns></returns>
         private static DataTable GetTableColumnsInfo(string table,string connectionString)
         {
             DataTable dataTable = new DataTable();
